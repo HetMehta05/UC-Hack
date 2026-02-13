@@ -10,6 +10,8 @@ class Doctor(models.Model):
     def __str__(self):
         return f"Dr. {self.name} - {self.department}"
 
+from django.utils import timezone
+
 class Token(models.Model):
     STATUS_CHOICES = (
         ('WAITING', 'Waiting'),
@@ -23,6 +25,9 @@ class Token(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='WAITING')
     created_at = models.DateTimeField(auto_now_add=True)
 
+    date = models.DateField(default=timezone.now)  # 👈 ADD THIS
+
     def __str__(self):
-        return f"{self.doctor.name} - Token {self.token_number}"
+        return f"{self.doctor.name} - Token {self.token_number} ({self.date})"
+
 
