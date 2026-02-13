@@ -10,12 +10,55 @@ import {
     KeyboardAvoidingView,
     Platform,
     Pressable,
+    Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
+const BASE_URL = "http://192.168.1.6:8000";
+
+
 export default function LoginScreen({ navigation }) {
     const [remember, setRemember] = useState(false);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+
+    const handleLogin = async () => {
+        if (!email || !password) {
+            Alert.alert("All fields required");
+            return;
+        }
+
+        try {
+            const response = await fetch(`${BASE_URL}/api/users/login/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    username: email,
+                    password,
+                }),
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                console.log("Login response:", data);
+                Alert.alert("Login Successful", "", [
+                    {
+                        text: "OK",
+                        onPress: () => navigation.replace("home"),
+                    },
+                ]);
+            } else {
+                Alert.alert("Invalid Credentials");
+            }
+        } catch (error) {
+            Alert.alert("Network Error", error.message);
+        }
+    };
+
 
     return (
         <KeyboardAvoidingView
@@ -31,7 +74,6 @@ export default function LoginScreen({ navigation }) {
             >
                 <View style={styles.screen}>
 
-                    {/* Back Arrow */}
                     <TouchableOpacity
                         style={styles.backButton}
                         onPress={() => navigation.goBack()}
@@ -40,8 +82,6 @@ export default function LoginScreen({ navigation }) {
                         <Ionicons name="arrow-back" size={28} color="#000" />
                     </TouchableOpacity>
 
-
-                    {/* Image */}
                     <View style={styles.imageWrapper}>
                         <Image
                             source={require('../../assets/signup_img.png')}
@@ -50,36 +90,36 @@ export default function LoginScreen({ navigation }) {
                         />
                     </View>
 
-                    {/* Title */}
                     <Text style={styles.title}>Login</Text>
                     <Text style={styles.subtitle}>
                         Login to access your account
                     </Text>
 
-                    {/* Email */}
                     <TextInput
                         placeholder="Email"
                         placeholderTextColor="#999"
                         style={styles.input}
+                        value={email}
+                        onChangeText={setEmail}
+                        autoCapitalize="none"
+                        keyboardType="email-address"
                     />
 
-                    {/* Password */}
                     <TextInput
                         placeholder="Password"
                         placeholderTextColor="#999"
                         secureTextEntry
+                        value={password}
+                        onChangeText={setPassword}
                         style={styles.input}
                     />
 
-                    {/* Forgot Password */}
                     <Text style={styles.forgotText}>Forgot Password?</Text>
 
-                    {/* Button */}
-                    <TouchableOpacity style={styles.button}>
+                    <TouchableOpacity style={styles.button} onPress={handleLogin}>  {/* Added onPress */}
                         <Text style={styles.buttonText}>Login</Text>
                     </TouchableOpacity>
 
-                    {/* Remember Me */}
                     <Pressable
                         style={styles.rememberRow}
                         onPress={() => setRemember(!remember)}
@@ -107,6 +147,7 @@ export default function LoginScreen({ navigation }) {
         </KeyboardAvoidingView>
     );
 }
+
 
 const styles = StyleSheet.create({
     safe: {
