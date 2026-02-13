@@ -84,7 +84,7 @@ export default function SelectDoctorScreen({ navigation }) {
       </View>
 
       {/* FULL WIDTH BUTTON */}
-      <TouchableOpacity style={styles.bookBtn}>
+      <TouchableOpacity style={styles.bookBtn} onPress={() => navigation.navigate("conformPatient", { doctor: item })}>
         <Text style={styles.bookText}>Book Appointment</Text>
       </TouchableOpacity>
 

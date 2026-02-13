@@ -11,6 +11,8 @@ import selectDoctorScreenEnt from "../MediQ/Screens/Department/selectDoctorScree
 import selectDoctorScreenNeurology from "../MediQ/Screens/Department/selectDoctorScreenNeurology";
 import selectDoctorScreenOrthopedic from "../MediQ/Screens/Department/selectDoctorScreenOrthopedic";
 import SelectDoctorScreen from './Screens/Department/selectDoctorScreenPulmonologist';
+import confirmPatientScreen from './Screens/confirmPatientScreen';
+import ActiveTokenScreen from './Screens/activeTokenScreen';
 
 
 const Stack = createNativeStackNavigator();
@@ -72,6 +74,17 @@ export default function App() {
           options={{ headerShown: false }}
         />
 
+
+        <Stack.Screen
+          name="conformPatient"
+          component={confirmPatientScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="activeToken"
+          component={ActiveTokenScreen}
+          options={{ headerShown: false }}
+        />
       </Stack.Navigator>
     </NavigationContainer>
   );
