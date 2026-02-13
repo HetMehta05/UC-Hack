@@ -11,6 +11,7 @@ import {
     Platform,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import { Ionicons } from '@expo/vector-icons';
 
 export default function SignUpScreen({ navigation }) {
     return (
@@ -30,7 +31,13 @@ export default function SignUpScreen({ navigation }) {
                 <View style={styles.screen}>
 
                     {/* Back Arrow */}
-                    <Text style={styles.backArrow}>←</Text>
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="arrow-back" size={28} color="#000" />
+                    </TouchableOpacity>
+
 
                     {/* Image */}
                     <View style={styles.imageWrapper}>
@@ -104,6 +111,15 @@ const styles = StyleSheet.create({
         fontSize: 22,
         color: '#000',
         marginBottom: 12,
+    },
+    backButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 12,
+        marginTop: 30,
     },
 
     imageWrapper: {

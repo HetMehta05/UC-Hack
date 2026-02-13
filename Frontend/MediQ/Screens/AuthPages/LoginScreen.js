@@ -14,7 +14,7 @@ import {
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }) {
     const [remember, setRemember] = useState(false);
 
     return (
@@ -32,7 +32,14 @@ export default function LoginScreen() {
                 <View style={styles.screen}>
 
                     {/* Back Arrow */}
-                    <Text style={styles.backArrow}>←</Text>
+                    <TouchableOpacity
+                        style={styles.backButton}
+                        onPress={() => navigation.goBack()}
+                        activeOpacity={0.7}
+                    >
+                        <Ionicons name="arrow-back" size={28} color="#000" />
+                    </TouchableOpacity>
+
 
                     {/* Image */}
                     <View style={styles.imageWrapper}>
@@ -164,6 +171,15 @@ const styles = StyleSheet.create({
         borderColor: '#DDD',
         paddingHorizontal: 20,
         marginTop: 14,
+    },
+    backButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 12,
+        marginTop: 10,
     },
 
     forgotText: {
