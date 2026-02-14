@@ -9,18 +9,17 @@ import {
     ScrollView,
     KeyboardAvoidingView,
     Platform,
-    Alert,      // <-- Import Alert here
+    Alert,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
-const BASE_URL = "http://192.168.1.6:8000"; // Replace with your machine IP
+const BASE_URL = "http://10.241.63.8:8000";
 
 export default function SignUpScreen({ navigation }) {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [username, setUsername] = useState('');
-
 
     const validateEmail = (email) => {
         const regex = /\S+@\S+\.\S+/;
@@ -28,15 +27,20 @@ export default function SignUpScreen({ navigation }) {
     };
 
     const handleSignup = async () => {
-        if (!validateEmail(email)) {
-            Alert.alert("Invalid Email");
+        if (!username.trim()) {
+            Alert.alert("Validation Error", "Username is required");
             return;
         }
 
-        if (password.length < 6) {
-            Alert.alert("Password must be at least 6 characters");
-            return;
-        }
+        // if (!validateEmail(email)) {
+        //     Alert.alert("Validation Error", "Invalid email address");
+        //     return;
+        // }
+
+        // if (password.length < 6) {
+        //     Alert.alert("Validation Error", "Password must be at least 6 characters");
+        //     return;
+        // }
 
         try {
             const response = await fetch(`${BASE_URL}/api/users/signup/`, {
@@ -45,20 +49,20 @@ export default function SignUpScreen({ navigation }) {
                     "Content-Type": "application/json",
                 },
                 body: JSON.stringify({
-                    username: email,   // 👈 ADD THIS LINE
+                    username: username,
                     email: email,
                     password: password,
-                }),
+                })
 
             });
 
             const data = await response.json();
 
             if (response.ok) {
-                Alert.alert("Signup Successful");
+                Alert.alert("Success", "Signup Successful");
                 navigation.navigate("home");
             } else {
-                Alert.alert("Error", JSON.stringify(data));
+                Alert.alert("Signup Error", JSON.stringify(data));
             }
 
         } catch (error) {
@@ -78,14 +82,12 @@ export default function SignUpScreen({ navigation }) {
                 keyboardShouldPersistTaps="handled"
                 showsVerticalScrollIndicator={false}
             >
-
                 <View style={styles.screen}>
 
-                    {/* Back Arrow */}
                     <TouchableOpacity
                         style={styles.backButton}
                         activeOpacity={0.7}
-                        onPress={() => navigation.goBack()} // <-- Added navigation back
+                        onPress={() => navigation.goBack()}
                     >
                         <Ionicons name="arrow-back" size={28} color="#000" />
                     </TouchableOpacity>
@@ -104,6 +106,16 @@ export default function SignUpScreen({ navigation }) {
                     <Text style={styles.subtitle}>
                         Create an account or{'\n'}login to explore
                     </Text>
+
+                    {/* Username */}
+                    <TextInput
+                        placeholder="Username"
+                        placeholderTextColor="#999"
+                        style={styles.input}
+                        value={username}
+                        onChangeText={setUsername}
+                        autoCapitalize="none"
+                    />
 
                     {/* Email */}
                     <TextInput
@@ -127,14 +139,13 @@ export default function SignUpScreen({ navigation }) {
                     />
 
                     {/* Button */}
-                    <TouchableOpacity style={styles.button} onPress={handleSignup}> {/* Added onPress */}
+                    <TouchableOpacity style={styles.button} onPress={handleSignup}>
                         <Text style={styles.buttonText}>Sign up</Text>
                     </TouchableOpacity>
 
                     {/* Footer */}
                     <View style={styles.footerContainer}>
                         <Text style={styles.footerText}>Already a member? </Text>
-
                         <TouchableOpacity onPress={() => navigation.navigate('Login')}>
                             <Text style={styles.loginText}>Login</Text>
                         </TouchableOpacity>
@@ -179,6 +190,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 20,
         backgroundColor: "#0891AD",
+        overflow: 'hidden',
     },
     image: {
         width: 409,
@@ -228,6 +240,7 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 25,
+        marginBottom: 30,
     },
     loginText: {
         color: '#FF6A00',
