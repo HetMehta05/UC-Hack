@@ -8,7 +8,12 @@ from .models import Doctor, Token
 # 🔹 List all doctors (Patient selection screen)
 @api_view(['GET'])
 def list_doctors(request):
-    doctors = Doctor.objects.all()
+    department = request.query_params.get('department')
+
+    if department:
+        doctors = Doctor.objects.filter(department__iexact=department)
+    else:
+        doctors = Doctor.objects.all()
 
     data = [
         {
