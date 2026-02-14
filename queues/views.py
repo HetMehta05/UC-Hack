@@ -6,7 +6,9 @@ from .models import Doctor, Token
 
 
 # 🔹 List all doctors (Patient selection screen)
+
 @api_view(['GET'])
+@permission_classes([IsAuthenticated])
 def list_doctors(request):
     department = request.query_params.get('department')
 
