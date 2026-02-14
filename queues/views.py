@@ -27,7 +27,7 @@ def list_doctors(request):
     return Response(data)
 
 
-# 🔹 Patient joins queue
+# 🔹 Patient joins queue (NO multiple active tokens allowed)
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def join_queue(request):
@@ -36,27 +36,28 @@ def join_queue(request):
     if not doctor_id:
         return Response({"error": "doctor_id is required"}, status=400)
 
-    today = timezone.now().date()
-
     try:
         doctor = Doctor.objects.get(id=doctor_id)
     except Doctor.DoesNotExist:
         return Response({"error": "Doctor not found"}, status=404)
 
-    # Prevent duplicate join
-    existing_token = Token.objects.filter(
+    today = timezone.now().date()
+
+    # 🚫 Block if user already has active token
+    active_token = Token.objects.filter(
         doctor=doctor,
         patient=request.user,
-        status='WAITING',
-        date=today
+        status__in=['WAITING', 'SERVING']
     ).first()
 
-    if existing_token:
+    if active_token:
         return Response({
-            "message": "Already in queue",
-            "token_number": existing_token.token_number
-        })
+            "error": "You already have an active appointment with this doctor",
+            "token_number": active_token.token_number,
+            "status": active_token.status
+        }, status=400)
 
+    # 🔢 Generate next token number
     last_token = Token.objects.filter(
         doctor=doctor,
         date=today
@@ -68,7 +69,8 @@ def join_queue(request):
         doctor=doctor,
         patient=request.user,
         token_number=new_token_number,
-        date=today
+        date=today,
+        status='WAITING'
     )
 
     return Response({
@@ -93,7 +95,7 @@ def queue_status(request):
     except Doctor.DoesNotExist:
         return Response({"error": "Doctor not found"}, status=404)
 
-    # Get current serving token
+    # Current serving
     current_token = Token.objects.filter(
         doctor=doctor,
         status='SERVING',
@@ -102,11 +104,11 @@ def queue_status(request):
 
     current_number = current_token.token_number if current_token else 0
 
-    # Get patient token
+    # Patient token
     patient_token = Token.objects.filter(
         doctor=doctor,
         patient=request.user,
-        status='WAITING',
+        status__in=['WAITING', 'SERVING'],
         date=today
     ).first()
 
@@ -120,7 +122,7 @@ def queue_status(request):
         token_number__lt=patient_token.token_number
     ).count()
 
-    # 🔥 Calculate dynamic average consultation time
+    # 🔥 Calculate dynamic average time
     completed_tokens = Token.objects.filter(
         doctor=doctor,
         date=today,
@@ -133,25 +135,32 @@ def queue_status(request):
     else:
         avg_time = doctor.consultation_time
 
-    # 🔥 Calculate remaining time of current patient
+    # 🔥 Remaining time of current serving
     remaining_time = 0
 
     if current_token and current_token.start_time:
         time_spent = (timezone.now() - current_token.start_time).total_seconds() / 60
         remaining_time = max(avg_time - time_spent, 0)
 
-    # 🔥 Final estimation
+    # 🔥 Final estimated wait
     if people_ahead > 0:
         estimated_wait = remaining_time + (people_ahead - 1) * avg_time
     else:
         estimated_wait = remaining_time
+
+    total_in_queue = Token.objects.filter(
+        doctor=doctor,
+        status='WAITING',
+        date=today
+    ).count()
 
     return Response({
         "currently_serving": current_number,
         "your_token": patient_token.token_number,
         "people_ahead": people_ahead,
         "estimated_wait_minutes": round(estimated_wait, 1),
-        "average_consultation_time": round(avg_time, 1)
+        "average_consultation_time": round(avg_time, 1),
+        "total_in_queue": total_in_queue
     })
 
 
@@ -166,7 +175,7 @@ def call_next(request):
 
     today = timezone.now().date()
 
-    # Complete current serving patient
+    # Complete current serving
     current_token = Token.objects.filter(
         doctor=doctor,
         status='SERVING',
@@ -181,12 +190,11 @@ def call_next(request):
             duration = (
                 current_token.end_time - current_token.start_time
             ).total_seconds() / 60
-
             current_token.actual_duration = duration
 
         current_token.save()
 
-    # Move next waiting patient to serving
+    # Move next
     next_token = Token.objects.filter(
         doctor=doctor,
         status='WAITING',
@@ -221,7 +229,7 @@ def cancel_token(request):
         token = Token.objects.get(
             doctor_id=doctor_id,
             patient=request.user,
-            status='WAITING',
+            status__in=['WAITING', 'SERVING'],
             date=today
         )
     except Token.DoesNotExist:
@@ -254,9 +262,14 @@ def skip_token(request):
         return Response({"error": "No patient currently serving"}, status=404)
 
     current_token.status = 'SKIPPED'
+    current_token.end_time = timezone.now()
+
+    if current_token.start_time:
+        duration = (
+            current_token.end_time - current_token.start_time
+        ).total_seconds() / 60
+        current_token.actual_duration = duration
+
     current_token.save()
 
     return Response({"message": "Patient skipped"})
-
-
-
