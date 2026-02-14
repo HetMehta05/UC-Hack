@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from datetime import timedelta
+from queues.models import Token
 
 
 class SwapRequest(models.Model):
@@ -13,27 +14,28 @@ class SwapRequest(models.Model):
     ]
 
     from_token = models.ForeignKey(
-        'queues.Token',
-        related_name='swap_from',
-        on_delete=models.CASCADE
+        Token,
+        on_delete=models.CASCADE,
+        related_name='swap_sent'
     )
 
     to_token = models.ForeignKey(
-        'queues.Token',
-        related_name='swap_to',
-        on_delete=models.CASCADE
+        Token,
+        on_delete=models.CASCADE,
+        related_name='swap_received'
     )
 
     status = models.CharField(
-        max_length=20,
+        max_length=10,
         choices=STATUS_CHOICES,
         default='PENDING'
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
-    expires_at = models.DateTimeField()
 
-    def save(self, *args, **kwargs):
-        if not self.expires_at:
-            self.expires_at = timezone.now() + timedelta(minutes=2)
-        super().save(*args, **kwargs)
+    expires_at = models.DateTimeField(
+        default=timezone.now() + timedelta(minutes=2)
+    )
+
+    def __str__(self):
+        return f"{self.from_token.token_number} → {self.to_token.token_number} ({self.status})"

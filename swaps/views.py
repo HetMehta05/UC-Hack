@@ -2,13 +2,14 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from django.utils import timezone
+from django.db.models import Q
 from datetime import timedelta
 
 from queues.models import Token
 from .models import SwapRequest
 
 
-# 🔥 Helper: Expire old swaps
+# 🔥 Expire old swaps automatically
 def expire_old_swaps():
     SwapRequest.objects.filter(
         status='PENDING',
@@ -38,27 +39,13 @@ def request_swap(request):
     except Token.DoesNotExist:
         return Response({"error": "You are not in queue"}, status=404)
 
-    # 🚫 BLOCK: If user already ACCEPTED a swap for this token
-    accepted_swap_exists = SwapRequest.objects.filter(
-        from_token__patient=request.user,
-        status='ACCEPTED'
-    ).exists()
-
-    if accepted_swap_exists:
-        return Response(
-            {"error": "You already accepted a swap. Cannot request again."},
-            status=400
-        )
-
-    # 🔒 Limit pending swaps (max 2)
-    pending_count = SwapRequest.objects.filter(
+    # 🚫 Block if already has pending swap
+    if SwapRequest.objects.filter(
         from_token__patient=request.user,
         status='PENDING'
-    ).count()
-
-    if pending_count >= 2:
+    ).exists():
         return Response(
-            {"error": "Swap limit reached (max 2 pending requests)"},
+            {"error": "You already have a pending swap request"},
             status=400
         )
 
@@ -73,6 +60,14 @@ def request_swap(request):
 
     if my_token.token_number == target_token.token_number:
         return Response({"error": "Cannot swap with yourself"}, status=400)
+
+    # 🚫 Prevent duplicate swap request
+    if SwapRequest.objects.filter(
+        from_token=my_token,
+        to_token=target_token,
+        status='PENDING'
+    ).exists():
+        return Response({"error": "Swap already requested"}, status=400)
 
     swap = SwapRequest.objects.create(
         from_token=my_token,
@@ -111,6 +106,16 @@ def accept_swap(request):
 
     if swap.to_token.patient != request.user:
         return Response({"error": "Not authorized"}, status=403)
+
+    # 🚫 Safety checks
+    if swap.from_token.status != 'WAITING' or swap.to_token.status != 'WAITING':
+        return Response(
+            {"error": "One of the tokens is no longer eligible"},
+            status=400
+        )
+
+    if swap.from_token.doctor != swap.to_token.doctor:
+        return Response({"error": "Doctor mismatch"}, status=400)
 
     # 🔁 Perform swap
     temp = swap.from_token.token_number
@@ -157,21 +162,55 @@ def my_swaps(request):
     expire_old_swaps()
 
     swaps = SwapRequest.objects.filter(
-        from_token__patient=request.user
-    ) | SwapRequest.objects.filter(
-        to_token__patient=request.user
-    )
+        Q(from_token__patient=request.user) |
+        Q(to_token__patient=request.user)
+    ).order_by('-created_at')
 
     data = []
 
-    for swap in swaps.order_by('-created_at'):
+    for swap in swaps:
         data.append({
             "swap_id": swap.id,
             "from_token": swap.from_token.token_number,
             "to_token": swap.to_token.token_number,
             "status": swap.status,
-            "expires_at": swap.expires_at
+            "expires_at": swap.expires_at,
+            "created_at": swap.created_at
         })
 
     return Response(data)
 
+
+# 🔹 Nearby Tokens (For UI)
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def nearby_tokens(request):
+
+    doctor_id = request.query_params.get('doctor_id')
+
+    if not doctor_id:
+        return Response({"error": "doctor_id required"}, status=400)
+
+    try:
+        my_token = Token.objects.get(
+            doctor_id=doctor_id,
+            patient=request.user,
+            status='WAITING'
+        )
+    except Token.DoesNotExist:
+        return Response({"error": "You are not in queue"}, status=404)
+
+    tokens = Token.objects.filter(
+        doctor_id=doctor_id,
+        status='WAITING'
+    ).exclude(patient=request.user)
+
+    data = [
+        {
+            "token_number": t.token_number,
+            "username": t.patient.username
+        }
+        for t in tokens
+    ]
+
+    return Response(data)
