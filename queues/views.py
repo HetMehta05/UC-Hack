@@ -23,7 +23,7 @@ def join_queue(request):
     except Doctor.DoesNotExist:
         return Response({"error": "Doctor not found"}, status=404)
 
-    # 🚫 Prevent duplicate join for same doctor on same day
+    
     existing_token = Token.objects.filter(
         doctor=doctor,
         patient=request.user,
@@ -37,7 +37,7 @@ def join_queue(request):
             "token_number": existing_token.token_number
         })
 
-    # Get last token number for today
+    
     last_token = Token.objects.filter(
         doctor=doctor,
         date=today
@@ -75,7 +75,7 @@ def call_next(request):
     except Doctor.DoesNotExist:
         return Response({"error": "Doctor not found"}, status=404)
 
-    # Step 1: Complete current serving
+    
     current_token = Token.objects.filter(
         doctor=doctor,
         status='SERVING'
@@ -85,7 +85,7 @@ def call_next(request):
         current_token.status = 'COMPLETED'
         current_token.save()
 
-    # Step 2: Get next waiting
+    
     next_token = Token.objects.filter(
         doctor=doctor,
         status='WAITING'
@@ -113,7 +113,7 @@ def queue_status(request):
     except Doctor.DoesNotExist:
         return Response({"error": "Doctor not found"}, status=404)
 
-    # Currently serving
+    
     current_token = Token.objects.filter(
         doctor=doctor,
         status='SERVING'
@@ -121,7 +121,7 @@ def queue_status(request):
 
     current_number = current_token.token_number if current_token else 0
 
-    # Patient token
+    
     patient_token = Token.objects.filter(
         doctor=doctor,
         patient=request.user,
@@ -137,7 +137,7 @@ def queue_status(request):
         token_number__lt=patient_token.token_number
     ).count()
 
-    average_time_per_patient = 10  # minutes
+    average_time_per_patient = 10  
 
     estimated_wait = people_ahead * average_time_per_patient
 
@@ -192,3 +192,26 @@ def cancel_token(request):
     token.save()
 
     return Response({"message": "Token cancelled successfully"})
+
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def skip_token(request):
+    doctor_id = request.data.get('doctor_id')
+
+    try:
+        doctor = Doctor.objects.get(id=doctor_id)
+    except Doctor.DoesNotExist:
+        return Response({"error": "Doctor not found"}, status=404)
+
+    current_token = Token.objects.filter(
+        doctor=doctor,
+        status='SERVING'
+    ).first()
+
+    if not current_token:
+        return Response({"error": "No patient currently serving"}, status=404)
+
+    current_token.status = 'SKIPPED'
+    current_token.save()
+
+    return Response({"message": "Patient skipped"})
