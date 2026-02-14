@@ -5,7 +5,7 @@ from django.utils import timezone
 from .models import Doctor, Token
 
 
-# 🔹 List all doctors
+# 🔹 List all doctors (Patient selection screen)
 @api_view(['GET'])
 def list_doctors(request):
     doctors = Doctor.objects.all()
@@ -38,6 +38,7 @@ def join_queue(request):
     except Doctor.DoesNotExist:
         return Response({"error": "Doctor not found"}, status=404)
 
+    # Prevent duplicate join
     existing_token = Token.objects.filter(
         doctor=doctor,
         patient=request.user,
@@ -70,45 +71,6 @@ def join_queue(request):
         "doctor": doctor.name,
         "token_number": new_token_number,
         "date": today
-    })
-
-
-# 🔹 Doctor calls next patient
-@api_view(['POST'])
-@permission_classes([IsAdminUser])
-def call_next(request):
-    try:
-        doctor = Doctor.objects.get(user=request.user)
-    except Doctor.DoesNotExist:
-        return Response({"error": "Doctor profile not found"}, status=404)
-
-    today = timezone.now().date()
-
-    current_token = Token.objects.filter(
-        doctor=doctor,
-        status='SERVING',
-        date=today
-    ).first()
-
-    if current_token:
-        current_token.status = 'COMPLETED'
-        current_token.save()
-
-    next_token = Token.objects.filter(
-        doctor=doctor,
-        status='WAITING',
-        date=today
-    ).order_by('token_number').first()
-
-    if not next_token:
-        return Response({"message": "No patients waiting"})
-
-    next_token.status = 'SERVING'
-    next_token.save()
-
-    return Response({
-        "message": "Next patient called",
-        "token_number": next_token.token_number
     })
 
 
@@ -153,7 +115,7 @@ def queue_status(request):
         token_number__lt=patient_token.token_number
     ).count()
 
-    estimated_wait = people_ahead * 10
+    estimated_wait = people_ahead * 10  # 10 mins per patient
 
     return Response({
         "currently_serving": current_number,
@@ -163,7 +125,46 @@ def queue_status(request):
     })
 
 
-# 🔹 Admin sees full queue
+# 🔹 Doctor calls next patient (Doctor auto-detected from login)
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def call_next(request):
+    try:
+        doctor = Doctor.objects.get(user=request.user)
+    except Doctor.DoesNotExist:
+        return Response({"error": "Doctor profile not found"}, status=404)
+
+    today = timezone.now().date()
+
+    current_token = Token.objects.filter(
+        doctor=doctor,
+        status='SERVING',
+        date=today
+    ).first()
+
+    if current_token:
+        current_token.status = 'COMPLETED'
+        current_token.save()
+
+    next_token = Token.objects.filter(
+        doctor=doctor,
+        status='WAITING',
+        date=today
+    ).order_by('token_number').first()
+
+    if not next_token:
+        return Response({"message": "No patients waiting"})
+
+    next_token.status = 'SERVING'
+    next_token.save()
+
+    return Response({
+        "message": "Next patient called",
+        "token_number": next_token.token_number
+    })
+
+
+# 🔹 Admin views full queue
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
 def full_queue(request):
@@ -176,7 +177,6 @@ def full_queue(request):
 
     tokens = Token.objects.filter(
         doctor=doctor,
-        status='WAITING',
         date=today
     ).order_by('token_number')
 
@@ -190,6 +190,38 @@ def full_queue(request):
     ]
 
     return Response(data)
+
+
+# 🔹 Patient cancels token
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def cancel_token(request):
+    doctor_id = request.data.get('doctor_id')
+
+    if not doctor_id:
+        return Response({"error": "doctor_id required"}, status=400)
+
+    today = timezone.now().date()
+
+    try:
+        doctor = Doctor.objects.get(id=doctor_id)
+    except Doctor.DoesNotExist:
+        return Response({"error": "Doctor not found"}, status=404)
+
+    try:
+        token = Token.objects.get(
+            doctor=doctor,
+            patient=request.user,
+            status='WAITING',
+            date=today
+        )
+    except Token.DoesNotExist:
+        return Response({"error": "No active token found"}, status=404)
+
+    token.status = 'COMPLETED'
+    token.save()
+
+    return Response({"message": "Token cancelled successfully"})
 
 
 # 🔹 Doctor skips current patient
@@ -216,4 +248,5 @@ def skip_token(request):
     current_token.save()
 
     return Response({"message": "Patient skipped"})
+
 
