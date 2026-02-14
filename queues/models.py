@@ -26,6 +26,10 @@ class Token(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='WAITING')
     date = models.DateField(default=timezone.now)
     created_at = models.DateTimeField(auto_now_add=True)
+    start_time = models.DateTimeField(null=True, blank=True)
+    end_time = models.DateTimeField(null=True, blank=True)
+    actual_duration = models.FloatField(null=True, blank=True)
+
 
     def __str__(self):
         return f"{self.doctor.name} - Token {self.token_number}"
