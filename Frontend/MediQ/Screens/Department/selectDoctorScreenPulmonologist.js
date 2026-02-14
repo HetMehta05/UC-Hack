@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import {
   View,
   Text,
@@ -6,118 +6,156 @@ import {
   SafeAreaView,
   FlatList,
   TouchableOpacity,
+  ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import axios from "axios";
 
-const doctors = [
-  {
-    id: "1",
-    name: "Dr. Dinesh Shah",
-    specialty: "Pulmonologist",
-    rating: 4.5,
-    reviews: 134,
-    experience: "12 years",
-    available: "Today, 3:00 PM",
-    initials: "DS",
-  },
-  {
-    id: "2",
-    name: "Dr. Ram Prasad",
-    specialty: "Pulmonologist",
-    rating: 4.7,
-    reviews: 201,
-    experience: "18 years",
-    available: "Today, 4:30 PM",
-    initials: "RP",
-  },
-  {
-    id: "3",
-    name: "Dr. Emily Williams",
-    specialty: "Pulmonologist",
-    rating: 4.7,
-    reviews: 142,
-    experience: "12 years",
-    available: "Tomorrow, 10:00 AM",
-    initials: "EW",
-  },
-  {
-    id: "4",
-    name: "Dr. James Anderson",
-    specialty: "Pulmonologist",
-    rating: 4.6,
-    reviews: 98,
-    experience: "10 years",
-    available: "Tomorrow, 3:00 PM",
-    initials: "JA",
-  },
-];
+const BASE_URL = "http://10.241.63.8:8000";
 
-export default function SelectDoctorScreen({ navigation }) {
+// Generate initials from doctor name
+const getInitials = (name = "") => {
+  const parts = name.replace(/^Dr\.?\s*/i, "").split(" ");
+  return parts
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? "")
+    .join("");
+};
+
+export default function PulmonologyDoctorsScreen({ navigation }) {
+
+  const department = "Pulmonology";
+
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch doctors
+  const fetchDoctors = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      const res = await axios.get(
+        `${BASE_URL}/api/queues/doctors/?department=${encodeURIComponent(department)}`
+      );
+
+      setDoctors(res.data);
+
+    } catch (err) {
+      console.log("Fetch doctors error:", err.response?.data || err.message);
+      setError("Could not load doctors. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchDoctors();
+  }, [fetchDoctors]);
+
   const renderDoctor = ({ item }) => (
     <View style={styles.card}>
 
       {/* Doctor Info */}
       <View style={styles.row}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{item.initials}</Text>
+          <Text style={styles.avatarText}>
+            {getInitials(item.name)}
+          </Text>
         </View>
 
         <View style={{ flex: 1 }}>
           <Text style={styles.name}>{item.name}</Text>
-          <Text style={styles.specialty}>{item.specialty}</Text>
+          <Text style={styles.specialty}>{department}</Text>
 
           <View style={styles.ratingRow}>
-            <Ionicons name="star" size={16} color="#f59e0b" />
-            <Text style={styles.rating}>
-              {item.rating} ({item.reviews})
-            </Text>
-            <Text style={styles.experience}>{item.experience}</Text>
+            <Ionicons name="star" size={14} color="#f59e0b" />
+            <Text style={styles.rating}>4.8</Text>
+            <Text style={styles.reviews}>(120 reviews)</Text>
+            <View style={styles.dot} />
+            <Text style={styles.experience}>10+ years</Text>
           </View>
         </View>
       </View>
 
       {/* Availability */}
       <View style={styles.availability}>
-        <Ionicons name="time-outline" size={16} color="#0f766e" />
+        <Ionicons name="time-outline" size={15} color="#0f766e" />
         <Text style={styles.availableText}>Next Available</Text>
-        <Text style={styles.time}>{item.available}</Text>
+        <Text style={styles.time}>Today</Text>
       </View>
 
-      {/* FULL WIDTH BUTTON */}
-      <TouchableOpacity style={styles.bookBtn} onPress={() => navigation.navigate("conformPatient", { doctor: item })}>
+      {/* Book Button */}
+      <TouchableOpacity
+        style={styles.bookBtn}
+        onPress={() =>
+          navigation.navigate("conformPatient", {
+            doctorId: item.id,
+            doctorName: item.name,
+            department: department,
+          })
+        }
+      >
+        <Ionicons name="calendar-outline" size={16} color="white" />
         <Text style={styles.bookText}>Book Appointment</Text>
       </TouchableOpacity>
 
     </View>
   );
 
+  // Loading state
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ActivityIndicator size="large" color="#0f766e" />
+      </SafeAreaView>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <Text>{error}</Text>
+      </SafeAreaView>
+    );
+  }
+
   return (
     <SafeAreaView style={styles.container}>
 
       {/* Header */}
       <View style={styles.header}>
-        <Ionicons
-          name="arrow-back"
-          size={24}
+        <TouchableOpacity
+          style={styles.backBtn}
           onPress={() => navigation.goBack()}
-        />
+        >
+          <Ionicons name="arrow-back" size={20} color="#0f766e" />
+        </TouchableOpacity>
+
         <View>
           <Text style={styles.headerTitle}>Select Doctor</Text>
-          <Text style={styles.headerSub}>Cardiology Department</Text>
+          <Text style={styles.headerSub}>
+            {department} Department
+          </Text>
         </View>
       </View>
 
       <FlatList
         data={doctors}
         renderItem={renderDoctor}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => String(item.id)}
         showsVerticalScrollIndicator={false}
+        contentContainerStyle={{ paddingBottom: 20 }}
       />
+
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+
   container: {
     flex: 1,
     backgroundColor: "#f4f7fb",
@@ -129,7 +167,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginVertical: 10,
+    marginVertical: 16,
+  },
+
+  backBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 2,
   },
 
   headerTitle: {
@@ -143,11 +191,10 @@ const styles = StyleSheet.create({
   },
 
   card: {
-    backgroundColor: "#fbfdff",
-    borderRadius: 18,
-    padding: 16,
+    backgroundColor: "#fff",
+    borderRadius: 20,
+    padding: 18,
     marginVertical: 8,
-    elevation: 2,
   },
 
   row: {
@@ -156,13 +203,13 @@ const styles = StyleSheet.create({
   },
 
   avatar: {
-    width: 55,
-    height: 55,
-    borderRadius: 30,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
     backgroundColor: "#0f766e",
     justifyContent: "center",
     alignItems: "center",
-    marginRight: 12,
+    marginRight: 14,
   },
 
   avatarText: {
@@ -177,22 +224,38 @@ const styles = StyleSheet.create({
   },
 
   specialty: {
-    color: "gray",
-    marginVertical: 2,
+    color: "#0f766e",
+    fontSize: 13,
+    marginTop: 2,
   },
 
   ratingRow: {
     flexDirection: "row",
     alignItems: "center",
-    marginTop: 4,
+    marginTop: 6,
+    gap: 4,
   },
 
   rating: {
-    marginLeft: 4,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+
+  reviews: {
+    fontSize: 12,
+    color: "gray",
+  },
+
+  dot: {
+    width: 3,
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: "#ccc",
+    marginHorizontal: 2,
   },
 
   experience: {
-    marginLeft: 10,
+    fontSize: 12,
     color: "gray",
   },
 
@@ -201,33 +264,35 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: "#e6f4f1",
     padding: 10,
-    borderRadius: 10,
-    marginTop: 12,
+    borderRadius: 12,
+    marginTop: 14,
+    gap: 6,
   },
 
   availableText: {
-    marginLeft: 6,
     color: "#0f766e",
     flex: 1,
   },
 
   time: {
     color: "#0f766e",
-    fontWeight: "600",
+    fontWeight: "700",
   },
 
   bookBtn: {
-    width: "100%",
-    backgroundColor: "#0f766e",
-    padding: 14,
-    borderRadius: 25,
+    flexDirection: "row",
+    justifyContent: "center",
     alignItems: "center",
+    backgroundColor: "#0f766e",
+    paddingVertical: 14,
+    borderRadius: 25,
     marginTop: 14,
+    gap: 8,
   },
 
   bookText: {
     color: "white",
     fontWeight: "600",
-    fontSize: 15,
   },
+
 });
