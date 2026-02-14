@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     View,
     Text,
@@ -9,11 +9,63 @@ import {
     ScrollView,
     KeyboardAvoidingView,
     Platform,
+    Alert,      // <-- Import Alert here
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
 
+const BASE_URL = "http://192.168.1.6:8000"; // Replace with your machine IP
+
 export default function SignUpScreen({ navigation }) {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [username, setUsername] = useState('');
+
+
+    const validateEmail = (email) => {
+        const regex = /\S+@\S+\.\S+/;
+        return regex.test(email);
+    };
+
+    const handleSignup = async () => {
+        if (!validateEmail(email)) {
+            Alert.alert("Invalid Email");
+            return;
+        }
+
+        if (password.length < 6) {
+            Alert.alert("Password must be at least 6 characters");
+            return;
+        }
+
+        try {
+            const response = await fetch(`${BASE_URL}/api/users/signup/`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    username: email,   // 👈 ADD THIS LINE
+                    email: email,
+                    password: password,
+                }),
+
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                Alert.alert("Signup Successful");
+                navigation.navigate("home");
+            } else {
+                Alert.alert("Error", JSON.stringify(data));
+            }
+
+        } catch (error) {
+            Alert.alert("Network Error", error.message);
+        }
+    };
+
     return (
         <KeyboardAvoidingView
             style={styles.safe}
@@ -27,17 +79,16 @@ export default function SignUpScreen({ navigation }) {
                 showsVerticalScrollIndicator={false}
             >
 
-                {/* MAIN WHITE SCREEN (NOT A CARD) */}
                 <View style={styles.screen}>
 
                     {/* Back Arrow */}
                     <TouchableOpacity
                         style={styles.backButton}
                         activeOpacity={0.7}
+                        onPress={() => navigation.goBack()} // <-- Added navigation back
                     >
                         <Ionicons name="arrow-back" size={28} color="#000" />
                     </TouchableOpacity>
-
 
                     {/* Image */}
                     <View style={styles.imageWrapper}>
@@ -59,6 +110,10 @@ export default function SignUpScreen({ navigation }) {
                         placeholder="Email"
                         placeholderTextColor="#999"
                         style={styles.input}
+                        value={email}
+                        onChangeText={setEmail}
+                        autoCapitalize="none"
+                        keyboardType="email-address"
                     />
 
                     {/* Password */}
@@ -67,10 +122,12 @@ export default function SignUpScreen({ navigation }) {
                         placeholderTextColor="#999"
                         secureTextEntry
                         style={styles.input}
+                        value={password}
+                        onChangeText={setPassword}
                     />
 
                     {/* Button */}
-                    <TouchableOpacity style={styles.button}>
+                    <TouchableOpacity style={styles.button} onPress={handleSignup}> {/* Added onPress */}
                         <Text style={styles.buttonText}>Sign up</Text>
                     </TouchableOpacity>
 
@@ -83,34 +140,26 @@ export default function SignUpScreen({ navigation }) {
                         </TouchableOpacity>
                     </View>
 
-
                 </View>
             </ScrollView>
         </KeyboardAvoidingView>
     );
 }
+
 const styles = StyleSheet.create({
     safe: {
         flex: 1,
-        backgroundColor: '#F5F5F5', // light outer background
+        backgroundColor: '#F5F5F5',
     },
-
     container: {
         flexGrow: 1,
     },
-
     screen: {
         flex: 1,
         backgroundColor: '#FFFFFF',
         borderTopLeftRadius: 30,
         borderTopRightRadius: 30,
         padding: 20,
-    },
-
-    backArrow: {
-        fontSize: 22,
-        color: '#000',
-        marginBottom: 12,
     },
     backButton: {
         width: 44,
@@ -121,7 +170,6 @@ const styles = StyleSheet.create({
         marginBottom: 12,
         marginTop: 30,
     },
-
     imageWrapper: {
         marginTop: 30,
         width: '100%',
@@ -132,13 +180,11 @@ const styles = StyleSheet.create({
         marginBottom: 20,
         backgroundColor: "#0891AD",
     },
-
     image: {
         width: 409,
         height: 273,
         marginBottom: 50,
     },
-
     title: {
         marginTop: 20,
         fontSize: 26,
@@ -146,14 +192,12 @@ const styles = StyleSheet.create({
         textAlign: 'center',
         color: '#000',
     },
-
     subtitle: {
         textAlign: 'center',
         color: '#888',
         fontSize: 14,
         marginVertical: 10,
     },
-
     input: {
         height: 48,
         borderRadius: 24,
@@ -162,7 +206,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         marginTop: 14,
     },
-
     button: {
         height: 50,
         backgroundColor: '#FF6A00',
@@ -171,25 +214,21 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginTop: 24,
     },
-
     buttonText: {
         color: '#FFF',
         fontSize: 16,
         fontWeight: 'bold',
     },
-
     footerText: {
         color: '#888',
         fontSize: 14,
     },
-
     footerContainer: {
         flexDirection: 'row',
         justifyContent: 'center',
         alignItems: 'center',
         marginTop: 25,
     },
-
     loginText: {
         color: '#FF6A00',
         fontWeight: 'bold',
