@@ -1,33 +1,34 @@
 from django.db import models
-from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 
 class Doctor(models.Model):
-    name =models.CharField(max_length=100)
-    department =models.CharField(max_length=100)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, null=True, blank=True)
+    name = models.CharField(max_length=100)
+    department = models.CharField(max_length=100)
 
     def __str__(self):
-        return f"Dr.{self.name}-{self.department}"
+        return f"Dr. {self.name} - {self.department}"
 
-from django.utils import timezone
 
 class Token(models.Model):
     STATUS_CHOICES = (
-        ('WAITING','Waiting'),
-        ('SERVING','Serving'),
-        ('COMPLETED','Completed'),
-        ('SKIPPED','skipped')
+        ('WAITING', 'Waiting'),
+        ('SERVING', 'Serving'),
+        ('COMPLETED', 'Completed'),
+        ('SKIPPED', 'Skipped'),
     )
 
-    doctor =models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name="tokens")
-    patient =models.ForeignKey(User, on_delete=models.CASCADE)
-    token_number =models.IntegerField()
-    status =models.CharField(max_length=20, choices=STATUS_CHOICES, default='WAITING')
-    created_at =models.DateTimeField(auto_now_add=True)
+    doctor = models.ForeignKey(Doctor, on_delete=models.CASCADE, related_name="tokens")
+    patient = models.ForeignKey(User, on_delete=models.CASCADE)
+    token_number = models.IntegerField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='WAITING')
+    date = models.DateField(default=timezone.now)
+    created_at = models.DateTimeField(auto_now_add=True)
 
-    date =models.DateField(default=timezone.now) 
     def __str__(self):
-        return f"{self.doctor.name} - Token {self.token_number} ({self.date})"
+        return f"{self.doctor.name} - Token {self.token_number}"
+
 
 
