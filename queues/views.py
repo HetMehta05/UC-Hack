@@ -273,3 +273,67 @@ def skip_token(request):
     current_token.save()
 
     return Response({"message": "Patient skipped"})
+
+# 🔹 Admin views full queue (monitor dashboard)
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
+def full_queue(request):
+    try:
+        doctor = Doctor.objects.get(user=request.user)
+    except Doctor.DoesNotExist:
+        return Response({"error": "Doctor profile not found"}, status=404)
+
+    today = timezone.now().date()
+
+    tokens = Token.objects.filter(
+        doctor=doctor,
+        date=today
+    ).order_by('token_number')
+
+    queue_data = []
+
+    for token in tokens:
+        queue_data.append({
+            "id": token.id,
+            "token_number": token.token_number,
+            "patient_username": token.patient.username,
+            "patient_id": token.patient.id,
+            "status": token.status,
+            "start_time": token.start_time,
+            "end_time": token.end_time,
+            "actual_duration": token.actual_duration
+        })
+
+    return Response({
+        "doctor": doctor.name,
+        "total_tokens": tokens.count(),
+        "queue": queue_data
+    })
+
+@api_view(['DELETE'])
+@permission_classes([IsAdminUser])
+def delete_token(request, token_id):
+    try:
+        token = Token.objects.get(id=token_id)
+    except Token.DoesNotExist:
+        return Response({"error": "Token not found"}, status=404)
+
+    token.delete()
+
+    return Response({"message": "Token deleted successfully"})
+
+@api_view(['POST'])
+@permission_classes([IsAdminUser])
+def force_complete(request):
+    token_id = request.data.get('token_id')
+
+    try:
+        token = Token.objects.get(id=token_id)
+    except Token.DoesNotExist:
+        return Response({"error": "Token not found"}, status=404)
+
+    token.status = 'COMPLETED'
+    token.end_time = timezone.now()
+    token.save()
+
+    return Response({"message": "Token marked as completed"})
